@@ -1,5 +1,26 @@
+/*!
+ * angular-localization :: v1.5.1 :: 2016-05-05
+ * web: http://doshprompt.github.io/angular-localization
+ *
+ * Copyright (c) 2016 | Rahul Doshi
+ * License: MIT
+ */
+;(function (window, angular, undefined) {
+    'use strict';
+
+angular.module('ngLocalize.Version', [])
+    .constant('localeVer', '1.5.1');
+angular.module('ngLocalize', ['ngSanitize', 'ngLocalize.Config', 'ngLocalize.Events', 'ngLocalize.InstalledLanguages']);
+
+angular.module('ngLocalize.InstalledLanguages', [])
+    .value('localeSupported', [
+        'en-US'
+    ])
+    .value('localeFallbacks', {
+        'en': 'en-US'
+    });
 angular.module('ngLocalize')
-    .service('locale', function ($injector, $http, $q, $log, $rootScope, $window, localeConf, localeEvents, localeSupported, localeFallbacks) {
+    .service('locale', ['$injector', '$http', '$q', '$log', '$rootScope', '$window', 'localeConf', 'localeEvents', 'localeSupported', 'localeFallbacks', function ($injector, $http, $q, $log, $rootScope, $window, localeConf, localeEvents, localeSupported, localeFallbacks) {
         var TOKEN_REGEX = localeConf.validTokens || new RegExp('^[\\w\\.-]+\\.[\\w\\s\\.-]+\\w(:.*)?$'),
             $html = angular.element(document.body).parent(),
             currentLocale,
@@ -106,10 +127,9 @@ angular.module('ngLocalize')
                     url += localeConf.fileExtension;
 
                     $http.get(url)
-                        .then(function (response) {
+                        .success(function (data) {
                             var key,
-                                path = getPath(token),
-                                data = response.data;
+                                path = getPath(token);
                             // Merge the contents of the obtained data into the stored bundle.
                             for (key in data) {
                                 if (data.hasOwnProperty(key)) {
@@ -133,7 +153,8 @@ angular.module('ngLocalize')
                             if (deferrences[path]) {
                                 deferrences[path].resolve(path);
                             }
-                        }, function (err) {
+                        })
+                        .error(function (err) {
                             var path = getPath(token);
 
                             $log.error('[localizationService] Failed to load: ' + url);
@@ -143,7 +164,7 @@ angular.module('ngLocalize')
 
                             // If we issued a Promise for this file, reject it now.
                             if (deferrences[path]) {
-                                deferrences[path].reject(err.data);
+                                deferrences[path].reject(err);
                             }
                         });
                 }
@@ -365,4 +386,146 @@ angular.module('ngLocalize')
             getString: getLocalizedString,
             getPreferredBrowserLanguage: getPreferredBrowserLanguage
         };
+    }]);
+
+angular.module('ngLocalize')
+    .filter('i18n', ['locale', function (locale) {
+        var i18nFilter = function (input, args) {
+            return locale.getString(input, args);
+        };
+
+        i18nFilter.$stateful = true;
+
+        return i18nFilter;
+    }]);
+
+angular.module('ngLocalize.Events', [])
+    .constant('localeEvents', {
+        resourceUpdates: 'ngLocalizeResourcesUpdated',
+        localeChanges: 'ngLocalizeLocaleChanged'
     });
+angular.module('ngLocalize')
+    .directive('i18n', ['$sce', 'locale', 'localeEvents', 'localeConf', function ($sce, locale, localeEvents, localeConf) {
+        function setText(elm, tag) {
+            if (tag !== elm.html()) {
+                elm.html($sce.getTrustedHtml(tag));
+            }
+        }
+
+        function update(elm, string, optArgs) {
+            if (locale.isToken(string)) {
+                locale.ready(locale.getPath(string)).then(function () {
+                    setText(elm, locale.getString(string, optArgs));
+                });
+            } else {
+                setText(elm, string);
+            }
+        }
+
+        return function (scope, elm, attrs) {
+            var hasObservers;
+
+            attrs.$observe('i18n', function (newVal, oldVal) {
+                if (newVal && newVal !== oldVal) {
+                    update(elm, newVal, hasObservers);
+                }
+            });
+
+            angular.forEach(attrs.$attr, function (attr, normAttr) {
+                if (localeConf.observableAttrs.test(attr)) {
+                    attrs.$observe(normAttr, function (newVal) {
+                        if (newVal || !hasObservers || !hasObservers[normAttr]) {
+                            hasObservers = hasObservers || {};
+                            hasObservers[normAttr] = attrs[normAttr];
+                            update(elm, attrs.i18n, hasObservers);
+                        }
+                    });
+                }
+            });
+
+            scope.$on(localeEvents.resourceUpdates, function () {
+                update(elm, attrs.i18n, hasObservers);
+            });
+            scope.$on(localeEvents.localeChanges, function () {
+                update(elm, attrs.i18n, hasObservers);
+            });
+        };
+    }])
+    .directive('i18nAttr', ['$rootScope', 'locale', 'localeEvents', function ($rootScope, locale, localeEvents) {
+        function setAttr ($attrs, key, value) {
+            $attrs.$set($attrs.$normalize(key), value);
+        }
+
+        function getUpdateText ($scope, target, $attrs) {
+            var lastValues = {};
+            return function (attributes) {
+                var values = $scope.$eval(attributes),
+                    langFiles = [],
+                    exp;
+
+                for(var key in values) {
+                    exp = values[key];
+                    if (locale.isToken(exp) && langFiles.indexOf(locale.getPath(exp)) === -1) {
+                        langFiles.push(locale.getPath(exp));
+                    }
+                }
+
+                locale.ready(langFiles).then(function () {
+                    var value = '';
+                    for(var key in values) {
+                        exp = values[key];
+                        value = locale.getString(exp);
+                        if (lastValues[key] !== value) {
+                            lastValues[key] = value;
+                            setAttr($attrs, key, value);
+                        }
+                    }
+                });
+            };
+        }
+
+        return {
+            // ensure has higher priority than ngAria
+            priority: 1000,
+            compile: function ($elem, $attrs) {
+                angular.forEach($rootScope.$eval($attrs.i18nAttr), function (value, key) {
+                    // temporarily populate attribute
+                    // avoid false positive warning about aria-label
+                    setAttr($attrs, key, value || '...');
+                });
+
+                return function ($scope, $elem, $attrs) {
+                    var updateText = getUpdateText($scope, $elem, $attrs);
+
+                    $attrs.$observe('i18nAttr', function (newVal) {
+                        if (newVal) {
+                            updateText(newVal);
+                        }
+                    });
+
+                    $scope.$on(localeEvents.resourceUpdates, function () {
+                        updateText($attrs.i18nAttr);
+                    });
+
+                    $scope.$on(localeEvents.localeChanges, function () {
+                        updateText($attrs.i18nAttr);
+                    });
+                };
+            }
+        };
+    }]);
+
+angular.module('ngLocalize.Config', [])
+    .value('localeConf', {
+        basePath: 'languages',
+        defaultLocale: 'en-US',
+        sharedDictionary: 'common',
+        fileExtension: '.lang.json',
+        persistSelection: true,
+        cookieName: 'COOKIE_LOCALE_LANG',
+        observableAttrs: new RegExp('^data-(?!ng-|i18n)'),
+        delimiter: '::',
+        validTokens: new RegExp('^[\\w\\.-]+\\.[\\w\\s\\.-]+\\w(:.*)?$')
+    });
+
+}(window, window.angular));
