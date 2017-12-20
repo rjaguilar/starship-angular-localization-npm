@@ -1,5 +1,5 @@
 /*!
- * angular-localization :: v1.5.1 :: 2016-05-05
+ * angular-localization :: v1.6.7 :: 2016-05-05
  * web: http://doshprompt.github.io/angular-localization
  *
  * Copyright (c) 2016 | Rahul Doshi
@@ -9,7 +9,7 @@
     'use strict';
 
 angular.module('ngLocalize.Version', [])
-    .constant('localeVer', '1.5.1');
+    .constant('localeVer', '1.6.7');
 angular.module('ngLocalize', ['ngSanitize', 'ngLocalize.Config', 'ngLocalize.Events', 'ngLocalize.InstalledLanguages']);
 
 angular.module('ngLocalize.InstalledLanguages', [])
@@ -127,7 +127,7 @@ angular.module('ngLocalize')
                     url += localeConf.fileExtension;
 
                     $http.get(url)
-                        .success(function (data) {
+                        .then(function (data) {
                             var key,
                                 path = getPath(token);
                             // Merge the contents of the obtained data into the stored bundle.
@@ -153,8 +153,7 @@ angular.module('ngLocalize')
                             if (deferrences[path]) {
                                 deferrences[path].resolve(path);
                             }
-                        })
-                        .error(function (err) {
+                        }, function (err) {
                             var path = getPath(token);
 
                             $log.error('[localizationService] Failed to load: ' + url);
