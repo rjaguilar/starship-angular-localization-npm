@@ -127,9 +127,10 @@ angular.module('ngLocalize')
                     url += localeConf.fileExtension;
 
                     $http.get(url)
-                        .then(function (data) {
+                        .then(function (response) {
                             var key,
-                                path = getPath(token);
+                                path = getPath(token),
+                                data = response.data;
                             // Merge the contents of the obtained data into the stored bundle.
                             for (key in data) {
                                 if (data.hasOwnProperty(key)) {
@@ -163,7 +164,7 @@ angular.module('ngLocalize')
 
                             // If we issued a Promise for this file, reject it now.
                             if (deferrences[path]) {
-                                deferrences[path].reject(err);
+                                deferrences[path].reject(err.data);
                             }
                         });
                 }
@@ -305,7 +306,7 @@ angular.module('ngLocalize')
                 if (!foundLanguage) {
                     var fallbackLang = localeFallbacks[language.split('-')[0]];
                     if (!angular.isUndefined(fallbackLang)) {
-                      foundLanguage = fallbackLang;
+                        foundLanguage = fallbackLang;
                     }
                 }
             }
@@ -526,5 +527,6 @@ angular.module('ngLocalize.Config', [])
         delimiter: '::',
         validTokens: new RegExp('^[\\w\\.-]+\\.[\\w\\s\\.-]+\\w(:.*)?$')
     });
+
 
 }(window, window.angular));
