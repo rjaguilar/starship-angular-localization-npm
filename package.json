@@ -1,6 +1,6 @@
 {
   "name": "starship-angular-localization-npm",
-  "version": "1.6.7",
+  "version": "1.6.8",
   "description": "angularjs localization done right.",
   "main": "index.js",
   "repository": "https://github.com/AudaxHealthInc/starship-angular-localization-npm.git",

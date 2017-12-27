@@ -1,5 +1,5 @@
 /*!
- * angular-localization :: v1.6.7 :: 2016-05-05
+ * angular-localization :: v1.6.8 :: 2016-05-05
  * web: http://doshprompt.github.io/angular-localization
  *
  * Copyright (c) 2016 | Rahul Doshi
@@ -9,7 +9,7 @@
     'use strict';
 
 angular.module('ngLocalize.Version', [])
-    .constant('localeVer', '1.6.7');
+    .constant('localeVer', '1.6.8');
 angular.module('ngLocalize', ['ngSanitize', 'ngLocalize.Config', 'ngLocalize.Events', 'ngLocalize.InstalledLanguages']);
 
 angular.module('ngLocalize.InstalledLanguages', [])
